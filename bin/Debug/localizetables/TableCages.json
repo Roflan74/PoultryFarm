@@ -1,0 +1,5 @@
+﻿{
+  "SourceColumns": [ "CageId", "ShopNumber", "RowNumber", "CageNumber", "WorkerId" ],
+  "LocalizeColumns": [ "ID", "Цех", "Ряд", "Номер клетки", "ID Работника" ],
+  "HideColumns": [ "CageId" ]
+}

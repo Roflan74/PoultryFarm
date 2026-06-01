@@ -1,0 +1,5 @@
+﻿{
+  "SourceColumns": [ "WorkerId", "PassportData", "Salary" ],
+  "LocalizeColumns": [ "ID", "ФИО / Паспорт", "Зарплата" ],
+  "HideColumns": [ "WorkerId" ]
+}

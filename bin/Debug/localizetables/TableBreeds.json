@@ -1,0 +1,5 @@
+﻿{
+  "SourceColumns": [ "BreedId", "Name", "AvgEggsPerMonth", "AvgWeight", "DietNumber" ],
+  "LocalizeColumns": [ "ID", "Название породы", "Яиц в месяц (ср.)", "Средний вес", "№ диеты" ],
+  "HideColumns": [ "BreedId" ]
+}
