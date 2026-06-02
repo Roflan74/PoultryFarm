@@ -62,5 +62,31 @@ namespace PoultryFarm
             // Убираем пустой столбец слева для красоты
             gridView.RowHeadersVisible = false;
         }
+
+        public static void ApplyModernGridStyle(DataGridView gridView)
+        {
+            // Убираем лишние рамки и серый фон
+            gridView.BackgroundColor = System.Drawing.Color.White;
+            gridView.BorderStyle = BorderStyle.None;
+            gridView.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
+
+            // Красивая темная шапка таблицы
+            gridView.EnableHeadersVisualStyles = false;
+            gridView.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
+            gridView.ColumnHeadersDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(41, 57, 85);
+            gridView.ColumnHeadersDefaultCellStyle.ForeColor = System.Drawing.Color.White;
+            gridView.ColumnHeadersDefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold);
+            gridView.ColumnHeadersHeight = 35;
+
+            // Чередование цветов строк (зебра) для удобства чтения
+            gridView.AlternatingRowsDefaultCellStyle.BackColor = System.Drawing.Color.FromArgb(240, 240, 240);
+
+            // Цвет при выделении строки
+            gridView.DefaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(67, 136, 204);
+            gridView.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.White;
+
+            // Автоматическая ширина столбцов под размер текста
+            gridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
     }
 }

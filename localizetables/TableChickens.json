@@ -1,5 +1,5 @@
 ﻿{
   "SourceColumns": [ "ChickenId", "Weight", "Age", "EggsPerMonth", "BreedId", "CageId" ],
-  "LocalizeColumns": [ "ID", "Вес", "Возраст", "Яиц за месяц", "ID Породы", "ID Клетки" ],
-  "HideColumns": [ "ChickenId", "BreedId", "CageId" ]
+  "LocalizeColumns": [ "ID Курицы", "Вес (кг)", "Возраст (мес)", "Яиц в месяц", "Порода", "Клетка" ],
+  "HideColumns": [ "ChickenId" ]
 }

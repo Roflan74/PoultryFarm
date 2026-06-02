@@ -3,14 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Data;
 using System.Data.SqlClient;
-using System.Windows.Forms;
-using PoultryFarm.Domains;
 
 namespace PoultryFarm
 {
     public class DatabaseManager
     {
-        private Dictionary<Type, SqlDbType> _mapTypes =
+        private readonly Dictionary<Type, SqlDbType> _mapTypes =
             new Dictionary<Type, SqlDbType>
             {
                 { typeof(int), SqlDbType.Int },
@@ -20,28 +18,14 @@ namespace PoultryFarm
                 { typeof(float), SqlDbType.Real },
                 { typeof(double), SqlDbType.Float },
                 { typeof(TimeSpan), SqlDbType.Time },
-                { typeof(decimal), SqlDbType.Decimal }
+                { typeof(decimal), SqlDbType.Decimal },
+                { typeof(DateTime), SqlDbType.Date }
             };
 
-        /// <summary>
-        /// строка подключения
-        /// </summary>
-        private string _connectionString;
-
-        /// <summary>
-        /// подключение к серверу СУБД
-        /// </summary>
-        private SqlConnection _connection;
-
-        /// <summary>
-        /// для запроса и обновления таблиц
-        /// </summary>
-        private SqlDataAdapter _adapter;
-
-        /// <summary>
-        /// Локальный кэш
-        /// </summary>
-        private DataSet _dataSet;
+        private readonly string _connectionString;
+        private readonly SqlConnection _connection;
+        private readonly SqlDataAdapter _adapter;
+        private readonly DataSet _dataSet;
 
         public DatabaseManager(string connectionString)
         {
@@ -51,6 +35,20 @@ namespace PoultryFarm
             _adapter = new SqlDataAdapter();
         }
 
+        /// <summary>
+        /// Универсальное определение имени первичного ключа на основе имени таблицы
+        /// </summary>
+        private string GetIdColumnName(string tableName)
+        {
+            if (tableName.Equals(Constants.Tables.WorkerCageAssignment, StringComparison.OrdinalIgnoreCase))
+                return "AssignmentId";
+
+            if (tableName.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+                return tableName.Substring(0, tableName.Length - 1) + "Id";
+
+            return tableName + "Id";
+        }
+
         public void LoadTable(string tableName)
         {
             if (_dataSet.Tables.Contains(tableName))
@@ -58,24 +56,18 @@ namespace PoultryFarm
                 _dataSet.Tables.Remove(tableName);
             }
 
-            // Для наших таблиц достаточно простого SELECT *
             string queryString = $"select * from dbo.[{tableName}]";
 
             try
             {
                 _connection.Open();
-                var command = new SqlCommand(queryString, _connection);
-                _adapter.SelectCommand = command;
-
-                var table = new DataTable(tableName);
-                _adapter.Fill(table);
-                _dataSet.Tables.Add(table);
-
-                _connection.Close();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.ToString(), "Ошибка загрузки таблицы");
+                using (var command = new SqlCommand(queryString, _connection))
+                {
+                    _adapter.SelectCommand = command;
+                    var table = new DataTable(tableName);
+                    _adapter.Fill(table);
+                    _dataSet.Tables.Add(table);
+                }
             }
             finally
             {
@@ -84,9 +76,6 @@ namespace PoultryFarm
             }
         }
 
-        /// <summary>
-        /// Получить таблицу из локального хранилища
-        /// </summary>
         public DataTable GetTable(string tableName)
         {
             var table = _dataSet.Tables[tableName];
@@ -94,35 +83,27 @@ namespace PoultryFarm
             {
                 LoadTable(tableName);
             }
-
             return _dataSet.Tables[tableName];
         }
 
         private void CreateIdParameter(SqlCommand command, DataTable table, bool isIdOutput)
         {
-            var p4 = new SqlParameter()
+            string idColumnName = GetIdColumnName(table.TableName);
+            var p = new SqlParameter()
             {
                 SqlDbType = SqlDbType.BigInt,
-                ParameterName = $"@{table.TableName}Id",
-                SourceColumn = table.TableName == Constants.Tables.Breed ? "BreedId" :
-                               table.TableName == Constants.Tables.Cage ? "CageId" :
-                               table.TableName == Constants.Tables.Worker ? "WorkerId" :
-                               table.TableName == Constants.Tables.Chicken ? "ChickenId" : $"{table.TableName}Id"
+                ParameterName = $"@{idColumnName}",
+                SourceColumn = idColumnName
             };
             if (isIdOutput)
-                p4.Direction = ParameterDirection.Output;
-            command.Parameters.Add(p4);
+                p.Direction = ParameterDirection.Output;
+            command.Parameters.Add(p);
         }
 
         private void CreateParameters(DataTable table, SqlCommand command)
         {
             var columns = table.Columns.Cast<DataColumn>().ToList();
-
-            // Исключаем первичный ключ из параметров для INSERT/UPDATE
-            string idColumnName = table.TableName == Constants.Tables.Breed ? "BreedId" :
-                                  table.TableName == Constants.Tables.Cage ? "CageId" :
-                                  table.TableName == Constants.Tables.Worker ? "WorkerId" :
-                                  table.TableName == Constants.Tables.Chicken ? "ChickenId" : $"{table.TableName}Id";
+            string idColumnName = GetIdColumnName(table.TableName);
 
             columns = columns.Where(x => x.ColumnName != idColumnName).ToList();
 
@@ -143,63 +124,38 @@ namespace PoultryFarm
         private string GenerateUpdateSqlString(DataTable table)
         {
             string tableName = table.TableName;
+            string idColumn = GetIdColumnName(tableName);
             string sqlString = $"update dbo.[{tableName}] set ";
 
             var columns = table.Columns.Cast<DataColumn>().ToList();
             List<string> columnNames = columns.Select(c => c.ColumnName).ToList();
-
-            string columnId = tableName == Constants.Tables.Breed ? "BreedId" :
-                              tableName == Constants.Tables.Cage ? "CageId" :
-                              tableName == Constants.Tables.Worker ? "WorkerId" :
-                              tableName == Constants.Tables.Chicken ? "ChickenId" : $"{tableName}Id";
-
-            columnNames.Remove(columnId);
+            columnNames.Remove(idColumn);
 
             string sqlAssign = string.Join(", ", columnNames.Select(name => $"[{name}] = @{name}"));
-            sqlString = sqlString + sqlAssign + $" where {columnId} = @{columnId}";
-
-            return sqlString;
+            return sqlString + sqlAssign + $" where [{idColumn}] = @{idColumn}";
         }
 
         private string GenerateInsertSqlString(DataTable table)
         {
             string tableName = table.TableName;
+            string idColumn = GetIdColumnName(tableName);
             var columns = table.Columns.Cast<DataColumn>().ToList();
             List<string> columnNames = columns.Select(c => c.ColumnName).ToList();
-
-            string columnId = tableName == Constants.Tables.Breed ? "BreedId" :
-                              tableName == Constants.Tables.Cage ? "CageId" :
-                              tableName == Constants.Tables.Worker ? "WorkerId" :
-                              tableName == Constants.Tables.Chicken ? "ChickenId" : $"{tableName}Id";
-
-            columnNames.Remove(columnId);
+            columnNames.Remove(idColumn);
 
             string sqlColumnsInBrackets = "(" + string.Join(", ", columnNames.Select(n => $"[{n}]")) + ") ";
             string sqlParametersInBrackets = "(@" + string.Join(", @", columnNames) + ") ";
 
-            string sqlString =
-                $"insert into dbo.[{tableName}] " +
-                sqlColumnsInBrackets +
-                " values " +
-                sqlParametersInBrackets + "; " +
-                $"select @{columnId} = SCOPE_Identity()";
-
-            return sqlString;
+            return $"insert into dbo.[{tableName}] " + sqlColumnsInBrackets +
+                   " values " + sqlParametersInBrackets + "; " +
+                   $"select @{idColumn} = SCOPE_Identity()";
         }
 
         private string GenerateDeleteSqlString(DataTable table)
         {
             string tableName = table.TableName;
-            string columnId = tableName == Constants.Tables.Breed ? "BreedId" :
-                              tableName == Constants.Tables.Cage ? "CageId" :
-                              tableName == Constants.Tables.Worker ? "WorkerId" :
-                              tableName == Constants.Tables.Chicken ? "ChickenId" : $"{tableName}Id";
-
-            string sqlString =
-                $"delete from dbo.[{tableName}] " +
-                $"where {columnId} = @{columnId}";
-
-            return sqlString;
+            string idColumn = GetIdColumnName(tableName);
+            return $"delete from dbo.[{tableName}] where [{idColumn}] = @{idColumn}";
         }
 
         public bool UpdateDatabase(string tableName)
@@ -208,200 +164,60 @@ namespace PoultryFarm
             try
             {
                 _connection.Open();
-
                 var table = GetTable(tableName);
-                string sqlUpdate = GenerateUpdateSqlString(table);
-                string sqlInsert = GenerateInsertSqlString(table);
-                string sqlDelete = GenerateDeleteSqlString(table);
 
-                // Команда ОБНОВЛЕНИЯ
-                var commandUpdate = new SqlCommand(sqlUpdate, _connection);
+                var commandUpdate = new SqlCommand(GenerateUpdateSqlString(table), _connection);
                 CreateParameters(table, commandUpdate);
                 CreateIdParameter(commandUpdate, table, isIdOutput: false);
                 _adapter.UpdateCommand = commandUpdate;
 
-                // Команда ДОБАВЛЕНИЯ
-                var commandInsert = new SqlCommand(sqlInsert, _connection);
+                var commandInsert = new SqlCommand(GenerateInsertSqlString(table), _connection);
                 CreateParameters(table, commandInsert);
                 CreateIdParameter(commandInsert, table, isIdOutput: true);
                 _adapter.InsertCommand = commandInsert;
 
-                // Команда УДАЛЕНИЯ
-                var commandDelete = new SqlCommand(sqlDelete, _connection);
-                _adapter.DeleteCommand = commandDelete;
+                var commandDelete = new SqlCommand(GenerateDeleteSqlString(table), _connection);
                 CreateIdParameter(commandDelete, table, isIdOutput: false);
+                _adapter.DeleteCommand = commandDelete;
 
-                // выполнение пакетного запроса к SQL
                 _adapter.Update(table);
-
-                _connection.Close();
                 isSuccess = true;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.ToString(), "Ошибка сохранения данных в БД");
             }
             finally
             {
                 if (_connection.State == ConnectionState.Open)
                     _connection.Close();
             }
-
             return isSuccess;
         }
 
-        #region CRUD - ПОРОДЫ (Breeds)
-        public void AddBreed(Breed breed)
+        /// <summary>
+        /// Выполняет произвольный SQL-запрос (SELECT) и возвращает результат в виде DataTable
+        /// </summary>
+        public DataTable ExecuteQuery(string sqlQuery)
         {
-            var table = GetTable(Constants.Tables.Breed);
-            DataRow selectedRow = table.NewRow();
-            table.Rows.Add(selectedRow);
-
-            selectedRow["Name"] = breed.Name;
-            selectedRow["AvgEggsPerMonth"] = breed.AvgEggsPerMonth;
-            selectedRow["AvgWeight"] = breed.AvgWeight;
-            selectedRow["DietNumber"] = breed.DietNumber;
-        }
-
-        public void UpdateBreed(Breed breed)
-        {
-            var table = GetTable(Constants.Tables.Breed);
-            DataRow selectedRow = table.Select($"BreedId = {breed.BreedId}")?.FirstOrDefault();
-            if (selectedRow != null)
+            var table = new DataTable();
+            try
             {
-                selectedRow["Name"] = breed.Name;
-                selectedRow["AvgEggsPerMonth"] = breed.AvgEggsPerMonth;
-                selectedRow["AvgWeight"] = breed.AvgWeight;
-                selectedRow["DietNumber"] = breed.DietNumber;
+                _connection.Open();
+                using (var command = new SqlCommand(sqlQuery, _connection))
+                {
+                    using (var adapter = new SqlDataAdapter(command))
+                    {
+                        adapter.Fill(table);
+                    }
+                }
             }
-        }
-
-        public void DeleteBreed(Breed breed)
-        {
-            var table = GetTable(Constants.Tables.Breed);
-            DataRow selectedRow = table.Select($"BreedId = {breed.BreedId}")?.FirstOrDefault();
-            if (selectedRow != null) selectedRow.Delete();
-        }
-        #endregion
-
-        #region CRUD - РАБОТНИКИ (Workers)
-        public void AddWorker(Worker worker)
-        {
-            var table = GetTable(Constants.Tables.Worker);
-            DataRow selectedRow = table.NewRow();
-            table.Rows.Add(selectedRow);
-
-            selectedRow["PassportData"] = worker.PassportData;
-            selectedRow["Salary"] = worker.Salary;
-        }
-
-        public void UpdateWorker(Worker worker)
-        {
-            var table = GetTable(Constants.Tables.Worker);
-            DataRow selectedRow = table.Select($"WorkerId = {worker.WorkerId}")?.FirstOrDefault();
-            if (selectedRow != null)
+            finally
             {
-                selectedRow["PassportData"] = worker.PassportData;
-                selectedRow["Salary"] = worker.Salary;
+                if (_connection.State == ConnectionState.Open)
+                    _connection.Close();
             }
+            return table;
         }
 
-        public void DeleteWorker(Worker worker)
-        {
-            var table = GetTable(Constants.Tables.Worker);
-            DataRow selectedRow = table.Select($"WorkerId = {worker.WorkerId}")?.FirstOrDefault();
-            if (selectedRow != null) selectedRow.Delete();
-        }
-        #endregion
-
-        #region CRUD - КЛЕТКИ (Cages)
-        public void AddCage(Cage cage)
-        {
-            var table = GetTable(Constants.Tables.Cage);
-            DataRow selectedRow = table.NewRow();
-            table.Rows.Add(selectedRow);
-
-            selectedRow["ShopNumber"] = cage.ShopNumber;
-            selectedRow["RowNumber"] = cage.RowNumber;
-            selectedRow["CageNumber"] = cage.CageNumber;
-            selectedRow["WorkerId"] = cage.WorkerId.HasValue ? (object)cage.WorkerId.Value : DBNull.Value;
-        }
-
-        public void UpdateCage(Cage cage)
-        {
-            var table = GetTable(Constants.Tables.Cage);
-            DataRow selectedRow = table.Select($"CageId = {cage.CageId}")?.FirstOrDefault();
-            if (selectedRow != null)
-            {
-                selectedRow["ShopNumber"] = cage.ShopNumber;
-                selectedRow["RowNumber"] = cage.RowNumber;
-                selectedRow["CageNumber"] = cage.CageNumber;
-                selectedRow["WorkerId"] = cage.WorkerId.HasValue ? (object)cage.WorkerId.Value : DBNull.Value;
-            }
-        }
-
-        public void DeleteCage(Cage cage)
-        {
-            var table = GetTable(Constants.Tables.Cage);
-            DataRow selectedRow = table.Select($"CageId = {cage.CageId}")?.FirstOrDefault();
-            if (selectedRow != null) selectedRow.Delete();
-        }
-        #endregion
-
-        #region CRUD - КУРЫ (Chickens)
-        public void AddChicken(Chicken chicken)
-        {
-            var table = GetTable(Constants.Tables.Chicken);
-            DataRow selectedRow = table.NewRow();
-            table.Rows.Add(selectedRow);
-
-            selectedRow["Weight"] = chicken.Weight;
-            selectedRow["Age"] = chicken.Age;
-            selectedRow["EggsPerMonth"] = chicken.EggsPerMonth;
-            selectedRow["BreedId"] = chicken.BreedId.HasValue ? (object)chicken.BreedId.Value : DBNull.Value;
-            selectedRow["CageId"] = chicken.CageId.HasValue ? (object)chicken.CageId.Value : DBNull.Value;
-        }
-
-        public void UpdateChicken(Chicken chicken)
-        {
-            var table = GetTable(Constants.Tables.Chicken);
-            DataRow selectedRow = table.Select($"ChickenId = {chicken.ChickenId}")?.FirstOrDefault();
-            if (selectedRow != null)
-            {
-                selectedRow["Weight"] = chicken.Weight;
-                selectedRow["Age"] = chicken.Age;
-                selectedRow["EggsPerMonth"] = chicken.EggsPerMonth;
-                selectedRow["BreedId"] = chicken.BreedId.HasValue ? (object)chicken.BreedId.Value : DBNull.Value;
-                selectedRow["CageId"] = chicken.CageId.HasValue ? (object)chicken.CageId.Value : DBNull.Value;
-            }
-        }
-
-        public void DeleteChicken(Chicken chicken)
-        {
-            var table = GetTable(Constants.Tables.Chicken);
-            DataRow selectedRow = table.Select($"ChickenId = {chicken.ChickenId}")?.FirstOrDefault();
-            if (selectedRow != null) selectedRow.Delete();
-        }
-        #endregion
-
-        #region ОБЩЕУПОТРЕБИТЕЛЬНЫЕ МЕТОДЫ УНИВЕРСАЛЬНОГО UI
-        public DataRow CreateNewRow(string tableName)
-        {
-            DataTable table = GetTable(tableName);
-            DataRow row = table.NewRow();
-            return row;
-        }
-
-        public void AddNewRow(string tableName, DataRow row)
-        {
-            DataTable table = GetTable(tableName);
-            table.Rows.Add(row);
-        }
-
-        public void DeleteRow(DataRow selectedRow)
-        {
-            selectedRow.Delete();
-        }
-        #endregion
+        public DataRow CreateNewRow(string tableName) => GetTable(tableName).NewRow();
+        public void AddNewRow(string tableName, DataRow row) => GetTable(tableName).Rows.Add(row);
+        public void DeleteRow(DataRow selectedRow) => selectedRow.Delete();
     }
 }

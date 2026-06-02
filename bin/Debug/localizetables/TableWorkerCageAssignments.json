@@ -1,0 +1,5 @@
+﻿{
+  "SourceColumns": [ "AssignmentId", "WorkerId", "CageId", "AssignedDate" ],
+  "LocalizeColumns": [ "ID Записи", "Работник", "Клетка", "Дата закрепления" ],
+  "HideColumns": [ "AssignmentId" ]
+}

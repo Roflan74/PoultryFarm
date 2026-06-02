@@ -1,20 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PoultryFarm
+﻿namespace PoultryFarm
 {
     public static class Constants
     {
         public static class Tables
         {
-            // Здесь перечисляем реальные названия таблиц из нашей SQL-базы
+            // Справочники (dict) — 5 таблиц
+            public const string Diet = "Diets";
             public const string Breed = "Breeds";
+            public const string Shop = "Shops";
             public const string Cage = "Cages";
             public const string Worker = "Workers";
+
+            // Основные таблицы (dbo) — 2 таблицы
             public const string Chicken = "Chickens";
+            public const string WorkerCageAssignment = "WorkerCageAssignments";
         }
     }
 }

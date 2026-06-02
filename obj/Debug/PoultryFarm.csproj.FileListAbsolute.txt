@@ -15,3 +15,9 @@ E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableBreeds.json
 E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableCages.json
 E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableChickens.json
 E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableWorkers.json
+E:\MIDiS\Sem4\CSharp\PoultryFarm\obj\Debug\PoultryFarm.MainForm.resources
+E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableDiets.json
+E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableShops.json
+E:\MIDiS\Sem4\CSharp\PoultryFarm\bin\Debug\localizetables\TableWorkerCageAssignments.json
+E:\MIDiS\Sem4\CSharp\PoultryFarm\obj\Debug\PoultryFarm.FormDirectorPanel.resources
+E:\MIDiS\Sem4\CSharp\PoultryFarm\obj\Debug\PoultryFarm.csproj.ResolveComReference.cache

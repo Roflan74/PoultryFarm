@@ -1,0 +1,5 @@
+﻿{
+  "SourceColumns": [ "ShopId", "ShopNumber", "Name" ],
+  "LocalizeColumns": [ "ID Цеха", "Номер цеха", "Название цеха" ],
+  "HideColumns": [ "ShopId" ]
+}

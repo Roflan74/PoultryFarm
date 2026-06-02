@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PoultryFarm.Domains
+﻿namespace PoultryFarm.Domains
 {
     public class Breed
     {
@@ -12,6 +6,6 @@ namespace PoultryFarm.Domains
         public string Name { get; set; }
         public int AvgEggsPerMonth { get; set; }
         public double AvgWeight { get; set; }
-        public int DietNumber { get; set; }
+        public long DietId { get; set; } // Связь со справочником диет
     }
 }

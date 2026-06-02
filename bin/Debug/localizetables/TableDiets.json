@@ -1,0 +1,5 @@
+﻿{
+  "SourceColumns": [ "DietId", "DietNumber", "Description" ],
+  "LocalizeColumns": [ "ID Диеты", "Номер диеты", "Описание рациона" ],
+  "HideColumns": [ "DietId" ]
+}
